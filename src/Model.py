@@ -143,7 +143,7 @@ if __name__ == '__main__':
     sequences_matrix = sequence.pad_sequences(sequences,maxlen=max_len)
 
     layers = [{'type': 'Input', 'config': {'shape': 20}},\
-              {'type': 'Embedding', 'config': {'input_dim': 1000, 'output_dim': 20, 'input_length': 20,  'trainable':False}}, \
+              {'type': 'Embedding', 'config': {'input_dim': 1000, 'output_dim': 20, 'input_length': 20,  'trainable':True}}, \
               {'type': 'LSTM', 'config': {'cells': 128, 'return_sequences': True, 'bidirectional': True}}, \
               {'type': 'LSTM', 'config': {'cells':128, 'return_sequences': True, 'bidirectional': True}}, \
               [[{'type': 'Conv1D', 'config': {'filters': 100, 'kernel_size': 5, 'activation': 'relu'}}, \
