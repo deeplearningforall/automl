@@ -3,7 +3,7 @@ from keras.models import model_from_json
 from keras.models import Model,load_model
 from keras.layers import Embedding
 from keras.layers import Bidirectional
-from keras.layers import LSTM
+from keras.layers import LSTM, GRU
 from keras.layers import Input
 from keras.layers import Conv1D
 from keras.layers import MaxPool1D
@@ -26,7 +26,7 @@ class NNBuilder():
         Set mappings from layer class to function to add the layers
         '''
 
-        self.mapping = {'LSTM': self.add_lstm, 'Dense': self.add_dense, 'Embedding': self.add_embedding,
+        self.mapping = {'LSTM': self.add_lstm, 'GRU': self.add_gru, 'Dense': self.add_dense, 'Embedding': self.add_embedding,
                         'Conv1D': self.add_conv, 'MaxPool1D': self.add_max_pool, 'Flatten':self.add_flatten}
         self.merge_mode = {'concatenate': Concatenate}
 
@@ -41,6 +41,18 @@ class NNBuilder():
         else:
             lstm_layer = LSTM(config['cells'], return_sequences=config['return_sequences'])(prev_layer)
         return lstm_layer
+
+    def add_gru(self, config, prev_layer):
+        '''
+        :param config: the parameters passed for gru layer;
+        :param prev_layer: the upstream layer of the current layer;
+        :return: the added gru layer.
+        '''
+        if config['bidirectional']:
+            gru_layer = Bidirectional(GRU(config['cells'], return_sequences=config['return_sequences']))(prev_layer)
+        else:
+            gru_layer = GRU(config['cells'], return_sequences=config['return_sequences'])(prev_layer)
+        return gru_layer
 
     def add_embedding(self, config, prev_layer):
         '''
@@ -144,8 +156,8 @@ if __name__ == '__main__':
 
     layers = [{'type': 'Input', 'config': {'shape': 20}},\
               {'type': 'Embedding', 'config': {'input_dim': 1000, 'output_dim': 20, 'input_length': 20,  'trainable':True}}, \
-              {'type': 'LSTM', 'config': {'cells': 128, 'return_sequences': True, 'bidirectional': True}}, \
-              {'type': 'LSTM', 'config': {'cells':128, 'return_sequences': True, 'bidirectional': True}}, \
+              {'type': 'GRU', 'config': {'cells': 128, 'return_sequences': True, 'bidirectional': True}}, \
+              {'type': 'GRU', 'config': {'cells':128, 'return_sequences': True, 'bidirectional': True}}, \
               [[{'type': 'Conv1D', 'config': {'filters': 100, 'kernel_size': 5, 'activation': 'relu'}}, \
               {'type': 'MaxPool1D', 'config': {'pool_size': 2}}, \
               {'type': 'Flatten', 'config': {}}],\
@@ -153,6 +165,7 @@ if __name__ == '__main__':
                 {'type': 'MaxPool1D', 'config': {'pool_size': 2}}, \
                 {'type': 'Flatten', 'config': {}}], 'concatenate'
                ], \
+              {'type': 'Dense', 'config': {'units': 800, 'activation': 'sigmoid'}},\
               {'type': 'Dense', 'config': {'units':5, 'activation': 'softmax'}}]
 
     model_config = {'loss':'sparse_categorical_crossentropy','optimizer': 'rmsprop', 'metrics': 'accuracy'}
