@@ -40,7 +40,8 @@ class NNBuilder():
             'Dense': {'units': [64, 128, 256], 'activation': ['relu', 'sigmoid']},
             'MaxPool1D': {'pool_size': [2]},
             'Conv1D': {'filters': [64, 128, 256], 'kernel_size': [2, 3, 4],
-                       'activation': ['sigmoid', 'relu']}}
+                       'activation': ['sigmoid', 'relu']},
+            'Flatten': {}}
 
         self.embedding_layer_config = {'input_dim': 10000, 'output_dim': 100}
         self.dense_layer_config = {'activation': 'softmax'}
@@ -134,8 +135,10 @@ class NNBuilder():
                 prev_layer = self.merge_mode[merge_mode](axis=-1)(col)
             else:
                 layer_class = layer['type']
-
-                layer_config = layer['config']
+                if layer_class == 'Flatten':
+                    layer_config = {}
+                else:
+                    layer_config = layer['config']
                 prev_layer = self.mapping[layer_class](layer_config, prev_layer)
 
         return prev_layer
@@ -243,7 +246,7 @@ if __name__ == '__main__':
     sequences_matrix = sequence.pad_sequences(sequences,maxlen=max_len)
 
     builder = NNBuilder()
-    num_intermediate_layers = 3
+    num_intermediate_layers = 10
     model = builder.build_model(sequences_matrix, Y_train, num_intermediate_layers)
     model.fit(sequences_matrix, Y_train, batch_size=128, epochs=3, validation_split=0.2)
 
