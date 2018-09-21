@@ -1,0 +1,11 @@
+Layers	Config	Value	Input Dim	Output Dim
+LSTM	return_sequences	TRUE	3	3
+		FALSE	3	2
+GRU	return_sequences	TRUE	3	3
+		FALSE	3	2
+Conv1D			3	3
+Maxpool			3	3
+Dense	intermediate_layer	TRUE	3,2	3,2
+		FALSE	2	3
+Embedding			2	3
+Flatten			3	2
