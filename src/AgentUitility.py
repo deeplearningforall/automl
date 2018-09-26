@@ -2,7 +2,16 @@ from Model import *
 from Model import NNBuilder
 
 class AgentUtility():
-    def  __init__(self, dataset_loc, input_col, output_col, sep=',', max_words=1000, maxlen=20):
+    def  __init__(self, dataset_loc, input_col, output_col, sep=',', max_words=None, maxlen=20):
+        '''
+            :param Dataset_loc: The loction of  the dataset.
+            :param input_col: The input column name in the dataset.
+            :param output_col: The output column name in the dataset.
+            :param sep: Seperator for reading the csv file.
+            :param max_words: Max vocab size to use for reading the csv file(None for unlimited).
+            :param maxlen: Max sequence length.
+            :return: None.
+        '''
         df = pd.read_csv(dataset_loc, sep, error_bad_lines = False)
         df = df[[input_col, output_col]]
         df = df.dropna()
@@ -17,13 +26,17 @@ class AgentUtility():
         self.builder = NNBuilder(len(self.tok.word_index)+1, max(self.y)+1, maxlen)
         self.model_layers = ['input_layer', 'Embedding', 'output_layer']
         self.model = self.builder.agent_model(self.model_layers)
-        self.perform_operation('add:LSTM_RST')
-        self.perform_operation('update:Conv1D')
-        self.perform_operation('add:MaxPool1D')
-        print(self.model.summary())
-        self.model.fit(self.x, self.y, batch_size=128, epochs=3, validation_split=0.2)
+        #self.perform_operation('add:LSTM_RST')
+        #self.perform_operation('update:Conv1D')
+        #self.perform_operation('add:MaxPool1D')
+        #print(self.model.summary())
+        #self.model.fit(self.x, self.y, batch_size=128, epochs=3, validation_split=0.2)
 
     def perform_operation(self, name):
+        '''
+        :param name: The name of operation too do. eg.  add:LSTM_RST for adding a lstm with return sequence as true., update:LSTM_RSF, Delete
+        :return: None
+        '''
         if(name.split(':')[0] == 'add'):
             self.model_layers.insert(-1,name.split(':')[1])
         elif(name.split(':')[0] == 'update'):
