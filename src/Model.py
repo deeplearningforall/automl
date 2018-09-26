@@ -10,6 +10,7 @@ from keras.layers import MaxPool1D
 from keras.layers import Dropout
 from keras.layers import Flatten
 from keras.layers import Concatenate
+import keras.backend as K
 from keras.layers import Dense, Activation
 from keras.optimizers import RMSprop
 from sklearn.preprocessing import LabelEncoder
@@ -23,17 +24,18 @@ import json
 
 class NNBuilder():
 
-    def __init__(self):
+    def __init__(self, vocab_size, output_len, input_len):
         '''
         Set mappings from layer class to function to add the layers
         '''
 
         self.mapping = {'LSTM': self.add_lstm, 'GRU': self.add_gru, 'Dense': self.add_dense,
                         'Embedding': self.add_embedding,
-                        'Conv1D': self.add_conv, 'MaxPool1D': self.add_max_pool, 'Flatten': self.add_flatten}
+                        'Conv1D': self.add_conv, 'MaxPool1D': self.add_max_pool, 'Flatten': self.add_flatten, 'Input': self.add_input}
         self.merge_mode = {'concatenate': Concatenate}
         self.down_stream = {3: ['LSTM', 'Dense', 'Conv1D', 'MaxPool1D', 'Flatten'], 2: ['Dense']}
         self.up_stream = {3: ['LSTM', 'Dense', 'Conv1D', 'MaxPool1D', 'Embedding'], 2: ['Flatten', 'LSTM']}
+
         self.layer_configs = {
             'LSTM': {'cells': [64, 128, 256], 'return_sequences': [True, False], 'bidirectional': [True, False]},
             'GRU': {'cells': [64, 128, 256], 'return_sequences': ['True', 'False']},
@@ -42,6 +44,26 @@ class NNBuilder():
             'Conv1D': {'filters': [64, 128, 256], 'kernel_size': [2, 3, 4],
                        'activation': ['sigmoid', 'relu']},
             'Flatten': {}}
+        self.layer_dict = {
+            'LSTM_RST': {'name':'LSTM', 'cells': 128, 'return_sequences': True, 'bidirectional': False},
+            'LSTM_RSF': {'name':'LSTM', 'cells': 128, 'return_sequences': False, 'bidirectional': False},
+            'LSTM_RST_BI': {'name':'LSTM', 'cells': 128, 'return_sequences': True, 'bidirectional': True},
+            'LSTM_RSF_BI': {'name':'LSTM', 'cells': 128, 'return_sequences': False, 'bidirectional': True},
+            'GRU_RST': {'name': 'GRU', 'cells': 128, 'return_sequences': True, 'bidirectional': False},
+            'GRU_RSF': {'name': 'GRU', 'cells': 128, 'return_sequences': False, 'bidirectional': False},
+            'GRU_RST_BI': {'name': 'GRU', 'cells': 128, 'return_sequences': True, 'bidirectional': True},
+            'GRU_RSF_BI': {'name': 'GRU', 'cells': 128, 'return_sequences': False, 'bidirectional': True},
+            'Dense_Sigmoid':{'name': 'Dense', 'units': 512, 'activation':  'sigmoid'},
+            'Dense_Tanh': {'name': 'Dense', 'units': 512, 'activation': 'tanh'},
+            'Dense_Relu': {'name': 'Dense', 'units': 512, 'activation': 'relu'},
+            'MaxPool1D': {'name':'MaxPool1D', 'pool_size': 2},
+            'Conv1D': {'name': 'Conv1D', 'filters': 128, 'kernel_size': 2,
+                       'activation': 'relu'},
+            'Flatten': {'name': 'Flatten'},
+            'Embedding': {'name': 'Embedding', 'input_dim': vocab_size, 'output_dim': 100, 'input_length': input_len, 'trainable': True},
+            'output_layer': {'name': 'Dense', 'units': output_len, 'activation': 'softmax'},
+            'input_layer': {'name': 'Input', 'input_len':input_len}
+        }
 
         self.embedding_layer_config = {'input_dim': 10000, 'output_dim': 100}
         self.dense_layer_config = {'activation': 'softmax'}
@@ -89,6 +111,15 @@ class NNBuilder():
         '''
         dense_layer = Dense(config['units'], activation=config['activation'])(prev_layer)
         return dense_layer
+
+    def add_input(self, config):
+        '''
+        :param config: the parameters passed for dense layer;
+        :param prev_layer: the upstream layer of the current layer;
+        :return: the added dense layer.
+        '''
+        input_layer = Input(shape = (config['input_len'],))
+        return input_layer
 
     def add_conv(self, config, prev_layer):
         '''
@@ -140,8 +171,30 @@ class NNBuilder():
                 else:
                     layer_config = layer['config']
                 prev_layer = self.mapping[layer_class](layer_config, prev_layer)
-
         return prev_layer
+
+
+    def agent_model(self,model_config):
+        '''
+            :param model_config: the layers needed to be added to a neural net.
+            :return: keras model object.
+        '''
+        input_layer = self.mapping[self.layer_dict[model_config[0]]['name']](self.layer_dict[model_config[0]])
+        prev = input_layer
+        for layer in model_config[1:]:
+            if(layer == 'output_layer'):
+                if(len(K.int_shape(prev)) >= 3):
+                    prev = self.mapping[self.layer_dict['Flatten']['name']](self.layer_dict['Flatten'], prev)
+                    prev = self.mapping[self.layer_dict[layer]['name']](self.layer_dict[layer], prev)
+                else:
+                    prev = self.mapping[self.layer_dict[layer]['name']](self.layer_dict[layer], prev)
+            else:
+                prev = self.mapping[self.layer_dict[layer]['name']](self.layer_dict[layer], prev)
+        model = Model(input_layer, prev)
+        model.compile(optimizer='rmsprop',
+                      loss='sparse_categorical_crossentropy',
+                      metrics=['accuracy'])
+        return model
 
     def gold_miner(self, embedding_layer_dim, output_layer_dim, num_intermediate_layers):
         '''
@@ -202,7 +255,7 @@ class NNBuilder():
 
         intermediate_layers = self.gold_miner(3, 2, num_intermediate_layers)
 
-        if intermediate_layers[len(intermediate_layers) - 1]['type'] in ['LSTM', 'GRU']:
+        if num_intermediate_layers > 0 and intermediate_layers[len(intermediate_layers) - 1]['type'] in ['LSTM', 'GRU']:
             intermediate_layers[len(intermediate_layers) - 1]['config']['return_sequences'] = False
         layers += intermediate_layers
 
@@ -246,7 +299,7 @@ if __name__ == '__main__':
     sequences_matrix = sequence.pad_sequences(sequences,maxlen=max_len)
 
     builder = NNBuilder()
-    num_intermediate_layers = 10
+    num_intermediate_layers = 1
     model = builder.build_model(sequences_matrix, Y_train, num_intermediate_layers)
     model.fit(sequences_matrix, Y_train, batch_size=128, epochs=3, validation_split=0.2)
 
