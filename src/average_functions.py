@@ -41,6 +41,7 @@ class DNN:
         return self
 
     def predict(self, feature):
+        
         return self.model.predict(feature)
 
     def save(self, path):
@@ -56,7 +57,7 @@ class DNN:
         self.old_model.set_weights(self.model.get_weights())
 
 def main():
-    model = DNN(8,64,2,4)
+    model = DNN(8,64,2,4,0.01)
 
     train_x = np.random.rand(1000,8)
     train_y = np.random.rand(1000,4)

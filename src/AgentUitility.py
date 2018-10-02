@@ -30,7 +30,7 @@ class AgentUtility():
         #self.perform_operation('update:Conv1D')
         #self.perform_operation('add:MaxPool1D')
         #print(self.model.summary())
-        #self.model.fit(self.x, self.y, batch_size=128, epochs=3, validation_split=0.2)
+        #a = self.model.fit(self.x, self.y, batch_size=512, epochs=3, validation_split=0.2)
 
     def perform_operation(self, name):
         '''
