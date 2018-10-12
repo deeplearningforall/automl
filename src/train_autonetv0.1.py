@@ -19,9 +19,9 @@ The neural network is implemented in average_function.py
 class LunarLander:
     def __init__(self, gamma=0.995, learning_rate=0.001, epsilon_step_size=125, replay_buffer_size=50000):
         self.env = Environment()
-        self.model = DNN(8,128,2,self.env.action_space.n, learning_rate)
+        self.model = DNN(20,128,2,len(self.env.action_space), learning_rate)
         self.epsilon = 1.0
-        self.min_exploration = 3000
+        self.min_exploration = 5
         self.replay_buffer_size = replay_buffer_size
         self.exploration_set = deque(maxlen=(self.replay_buffer_size))
         self.exploration_ct = 0
@@ -33,7 +33,7 @@ class LunarLander:
         self.learning_rate = learning_rate
         self.epsilon_step_size = epsilon_step_size
         self.epsilon_stat = defaultdict(int)
-        print ("Number of action space is: {0}, learning_rate is: {1}, gamma is {2}, epsilon_step_size is {3} and replay_buffer_size is {4}".format(self.env.action_space.n, self.learning_rate, self.gamma, self.epsilon_step_size, self.replay_buffer_size))
+        print ("Number of action space is: {0}, learning_rate is: {1}, gamma is {2}, epsilon_step_size is {3} and replay_buffer_size is {4}".format(len(self.env.action_space), self.learning_rate, self.gamma, self.epsilon_step_size, self.replay_buffer_size))
 
     """
     Method to render the environment
@@ -63,17 +63,25 @@ class LunarLander:
         outfile = open('training_reward_avg_per_episode_{0}_{1}_{2}_{3}.txt'.format(self.learning_rate, self.gamma, self.epsilon_step_size, self.replay_buffer_size),'w')
         logfile = open('training_{0}_{1}_{2}_{3}.log'.format(self.learning_rate, self.gamma, self.epsilon_step_size, self.replay_buffer_size),'w')
         best_score = 199
+        import time
+        print("starting epispdes")
+        time.sleep(10)
         for ep in range(episodes):
-            agent_utility = AgentUtility()
+            print("Episode: ", ep)
+            agent_utility = AgentUtility('../data/amazon_reviews_us_Mobile_Electronics_v1_00.tsv', 'review_body', 'star_rating', sep='\t')
+            print("Agent utility loaded")
+            time.sleep(10)
             self.env.set_action_utility(agent_utility)
             index = 0
             x = self.env.reset_stats()
             rv = 0
             while True:
+                print("index: ",index)
                 index += 1
                 if render:
                     self.render()
                 action = self.getAction(x)
+                print(action)
                 x_new, reward, done = self.env.step(action)
                 rv += reward
                 self.exploration_set.append((x,action,reward,x_new,done))
@@ -87,7 +95,8 @@ class LunarLander:
             print('{4}:  Ran episode {0}, scored {1}, epsilon is {2}, average score {3}'.format(ep, rv, self.epsilon, test_rw, str(datetime.now())))
             outfile.write("{0},{1},{2}\n".format(ep,np.average(self.moving_avg),rv))
             if self.exploration_ct > self.min_exploration and ep % self.replay_time == 0:
-                self.replay_batch(ep, 1024)
+                self.replay_batch(ep, 3)
+                self.model.save('./../models/'+str(ep)+"_"+str(index))
 
             #self.epsilon_stat[self.epsilon] += 1
             if ep % self.epsilon_step_size == 0 and ep != 0 :
@@ -146,27 +155,27 @@ class LunarLander:
 
     The weigts are copied to the target network from online network every few episodes as configued in  self.transer_weight_count
     """
-    def replay_batch(self, ep_st, batch_size=32):
+    def replay_batch(self, ep_st, batch_size=2):
         indexes = np.random.choice(len(self.exploration_set), size=batch_size)
         batch = [self.exploration_set[itr] for itr in indexes]
-        qvals = np.zeros((batch_size,8))
-        qactions = np.zeros((batch_size,4))
+        qvals = np.zeros((batch_size,20)).tolist()
+        #qactions = np.zeros((batch_size,4))
         ind = 0
         if ep_st % self.transer_weight_count == 0:
             self.model.clone()
-        x_new_batch = np.zeros((batch_size, 8))
-        x_batch = np.zeros((batch_size, 8))
+        x_new_batch = np.zeros((batch_size, 20)).tolist()
+        x_batch = np.zeros((batch_size, 20)).tolist()
         for i in range(len(batch)):
             x,action,reward,x_new,done = batch[i]
             x_new_batch[i] = x_new
             x_batch[i] = x
-        q_x = self.model.predict(x_batch)
-        qas = self.model.predict(x_new_batch)
-        qas_old = self.model.old_model.predict(x_new_batch)
+        q_x = self.model.batch_predict(x_batch)
+        qas = self.model.batch_predict(x_new_batch)
+        qas_old = self.model.batch_predict(x_new_batch, False)
         for i in range(len(batch)):
             x,action,reward,x_new,done = batch[i]
             q = reward if done else reward + self.gamma * qas_old[i][np.argmax(qas[i])] # Choose best action from new model, but, pick the estimate for the action from stationary model
-            q_x[i][action] = q
+            q_x[i][self.model.output_index[action]] = q
             qvals[ind] = x
             ind+=1
         self.model.train((qvals,q_x),epoch=1, batch_size=32)
@@ -229,11 +238,8 @@ class LunarLander:
         return np.average(rewards)
 
 def main():
-    if len(sys.argv) < 5 or len(sys.argv) > 7:
-        print ('Usage python train_lunarlander.py <learning_rate> <epsilon_step_size> <replay_buffer_size> <episodes> <optional: training_save_file_name>')
-        exit()
-    lander = LunarLander(learning_rate=float(sys.argv[1]), epsilon_step_size=int(sys.argv[2]), replay_buffer_size=int(sys.argv[3]), )
-    lander.act(episodes=int(sys.argv[4]), save_path=sys.argv[5] if len(sys.argv) == 6 else "lunar_learned_weights")
+    lander = LunarLander(learning_rate=float(0.001), epsilon_step_size=int(125), replay_buffer_size=int(50000), )
+    lander.act(episodes=int(10), save_path="lunar_learned_weights")
     #lander.save(sys.argv[5] if len(sys.argv) == 6 else "lunar_learned_weights")
     print (lander.epsilon_stat)
 

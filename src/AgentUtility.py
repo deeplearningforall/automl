@@ -1,5 +1,6 @@
 from Model import *
 from Model import NNBuilder
+import pandas as pd
 
 class AgentUtility():
     def  __init__(self, dataset_loc, input_col, output_col, sep=',', max_words=None, maxlen=20):
@@ -12,7 +13,7 @@ class AgentUtility():
             :param maxlen: Max sequence length.
             :return: None.
         '''
-        df = pd.read_csv(dataset_loc, sep, error_bad_lines = False)
+        df = pd.read_csv(dataset_loc, sep, error_bad_lines = False)[:2000]
         df = df[[input_col, output_col]]
         df = df.dropna()
         x = df[input_col]
@@ -45,25 +46,9 @@ class AgentUtility():
             self.model_layers.pop(-2)
         self.model = self.builder.agent_model(self.model_layers)
 
-AgentUtility('../data/amazon_reviews_us_Mobile_Electronics_v1_00.tsv', 'review_body', 'star_rating', '\t')
-'''
-da = pd.read_csv('../data/amazon_reviews_us_Mobile_Electronics_v1_00.tsv', sep='\t', error_bad_lines=False)
-da = da[['review_body', 'star_rating']]
-da = da.dropna()
-X = da.review_body
-Y = da.star_rating
-le = LabelEncoder()
-Y = le.fit_transform(Y)
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.15)
-max_words = 1000
-max_len = 20
-tok = Tokenizer(num_words=max_words)
-tok.fit_on_texts(X_train)
-sequences = tok.texts_to_sequences(X_train)
-sequences_matrix = sequence.pad_sequences(sequences, maxlen=max_len)
+def main():
+    AgentUtility('../data/amazon_reviews_us_Mobile_Electronics_v1_00.tsv', 'review_body', 'star_rating')
 
-builder = NNBuilder()
-num_intermediate_layers = 1
-model = builder.build_model(sequences_matrix, Y_train, num_intermediate_layers)
-model.fit(sequences_matrix, Y_train, batch_size=128, epochs=3, validation_split=0.2)
-'''
+
+if __name__ == '__main__':
+    main()
