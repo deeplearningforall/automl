@@ -13,7 +13,7 @@ class AgentUtility():
             :param maxlen: Max sequence length.
             :return: None.
         '''
-        df = pd.read_csv(dataset_loc, sep, error_bad_lines = False)[:2000]
+        df = pd.read_csv(dataset_loc, sep, error_bad_lines = False).sample(frac=0.02).reset_index(drop=True)#[:2000]
         df = df[[input_col, output_col]]
         df = df.dropna()
         x = df[input_col]

@@ -47,7 +47,7 @@ class Environment:
                 reward = 1
                 self.validation_loss = history.history["val_loss"]
             else:
-                reward = -1
+                reward = 1
             self.reward_history.append(reward)
             if(self.reward_history[-3:] == [-1, -1, -1]):
                 return self.agent_utility.model_layers, reward, True

@@ -7,16 +7,17 @@ from datetime import datetime
 from collections import defaultdict
 from Environment import Environment
 from AgentUtility import AgentUtility
+import pickle
 import sys
 
 """
-Lunar Lander Agent implementation using DDQN
+AutoNet Agent implementation using DDQN
 
-usage: python3 train_lunarlander.py <learning_rate> <epsilon_step_size> <replay_buffer_size> <episodes> <optional: training_save_file_name>
+usage: python3 train_autonet.py <learning_rate> <epsilon_step_size> <replay_buffer_size> <episodes> <optional: training_save_file_name>
 
 The neural network is implemented in average_function.py
 """
-class LunarLander:
+class AutoNet:
     def __init__(self, gamma=0.995, learning_rate=0.001, epsilon_step_size=125, replay_buffer_size=50000):
         self.env = Environment()
         self.model = DNN(20,128,2,len(self.env.action_space), learning_rate)
@@ -75,7 +76,7 @@ class LunarLander:
             index = 0
             x = self.env.reset_stats()
             rv = 0
-            while True:
+            while index<5:
                 print("index: ",index)
                 index += 1
                 if render:
@@ -87,6 +88,7 @@ class LunarLander:
                 self.exploration_set.append((x,action,reward,x_new,done))
                 x = x_new
                 self.exploration_ct += 1
+                pickle.dump(self.exploration_set,open("../autonetdata/autonetdata.pkl","wb"))
                 if done:
                     break
             self.moving_avg.append(rv)
@@ -202,7 +204,7 @@ class LunarLander:
      100 iterations and returns rewards from all the episodes
     """
     def test(self, path=None, iteration=100):
-        self.env = gym.make('LunarLander-v2')
+        self.env = gym.make('AutoNet-v2')
         self.env = gym.wrappers.Monitor(self.env, directory="temp")
         self.model.load(path)
 
@@ -238,8 +240,8 @@ class LunarLander:
         return np.average(rewards)
 
 def main():
-    lander = LunarLander(learning_rate=float(0.001), epsilon_step_size=int(125), replay_buffer_size=int(50000), )
-    lander.act(episodes=int(10), save_path="lunar_learned_weights")
+    lander = AutoNet(learning_rate=float(0.001), epsilon_step_size=int(125), replay_buffer_size=int(50000), )
+    lander.act(episodes=int(100000), save_path="lunar_learned_weights")
     #lander.save(sys.argv[5] if len(sys.argv) == 6 else "lunar_learned_weights")
     print (lander.epsilon_stat)
 
